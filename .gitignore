@@ -33,8 +33,12 @@ Desktop.ini
 *.pb
 
 # Logs (otomatik oluşur)
-logs/mission_log.md
+logs/*.md
+logs/*.jpg
+logs/*.jpeg
+logs/*.png
 gelisim_raporu.md
+!logs/.gitkeep
 
 # Data - görseller (büyük dosyalar)
 data/database/**/sag_profil.jpg
