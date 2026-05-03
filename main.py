@@ -1,6 +1,7 @@
 import os
 import sys
 from agents.supervisor import SupervisorAgent
+from report_manager import ReportManager
 
 
 def main() -> None:
@@ -20,6 +21,8 @@ def main() -> None:
     # Supervisor'ı başlat — tüm ajanları koordine eder
     supervisor = SupervisorAgent(image_path=query_path)
     blackboard = supervisor.run_mission()
+    report_manager = ReportManager()
+    report_manager.log_mission(blackboard)
 
     # Sonucu yazdır
     print("\n" + "=" * 40)

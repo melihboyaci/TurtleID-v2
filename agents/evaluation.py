@@ -23,7 +23,7 @@ class EvaluationWorker(BaseWorker):
             score = 1 - cosine(self.bb.query_embedding, db_emb)
             if score > best_score:
                 best_score = score
-                best_name = self.bb.db_files[i].split('.')[0].capitalize()
+                best_name = self.bb.db_files[i]
 
         if best_score >= self.MATCH_THRESHOLD:
             status = "GÜÇLÜ_EŞLEŞME"

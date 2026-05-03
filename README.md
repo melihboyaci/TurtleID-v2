@@ -46,7 +46,11 @@ turtle-id/
 │   ├── evaluation.py
 │   └── reporting.py
 ├── data/
-│   ├── database/            # Kayıtlı kaplumbağa görselleri (isim.jpg)
+│   ├── database/            # Her kaplumbağa için ayrı klasör
+│   │   └── ornek_kaplumbaga/
+│   │       ├── sag_profil.jpg
+│   │       ├── sol_profil.jpg
+│   │       └── metadata.json
 │   └── query/               # Tanımlanacak görsel
 ├── logs/
 │   └── mission_log.md
@@ -57,9 +61,10 @@ turtle-id/
 
 ## Kullanım
 
-1. `data/database/` içine kayıtlı bireylerin görsellerini koy. Dosya adı = birey adı (`leyla.jpg`, `kemal.png`).
-2. `data/query/` içine tanımlanacak görseli koy.
-3. Çalıştır:
+1. `data/database/` altında her kaplumbağa için ayrı klasör aç.
+2. Her klasöre `sag_profil.jpg`, `sol_profil.jpg` ve `metadata.json` koy.
+3. `data/query/` içine tanımlanacak görseli koy.
+4. Çalıştır:
 
 ```bash
 python main.py
@@ -72,8 +77,8 @@ python main.py
 
 ## Eşleşme Eşikleri
 
-| Skor | Durum |
-|---|---|
+| Skor   | Durum         |
+| ------ | ------------- |
 | ≥ 0.85 | GÜÇLÜ_EŞLEŞME |
 | ≥ 0.70 | OLASI_EŞLEŞME |
-| < 0.70 | YENİ_BİREY |
+| < 0.70 | YENİ_BİREY    |
