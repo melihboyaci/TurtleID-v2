@@ -17,7 +17,7 @@ class ReportingWorker(BaseWorker):
         super().__init__(blackboard)
         load_dotenv()
         genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-        self.llm = genai.GenerativeModel("gemini-1.5-flash")
+        self.llm = genai.GenerativeModel("gemini-2.5-flash")
 
     def execute(self) -> bool:
         result = self.bb.match_result
