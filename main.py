@@ -11,12 +11,13 @@ def main() -> None:
              if f.lower().endswith(('.jpg', '.jpeg', '.png'))]
 
     if not files:
-        print("❌ data/query/ klasörüne tanımlanacak görsel koy!")
+        print("❌ data/query/ klasörüne kırpılmış kafa profili görseli koy!")
+        print("   Beklenen: net deniz kaplumbağası sağ/sol yan kafa profili.")
         sys.exit(1)
 
     query_path = os.path.join(query_dir, files[0])
     print(f"\n🐢 TurtleID — Kimlik Tespit Başlıyor")
-    print(f"📸 Görsel: {files[0]}\n")
+    print(f"📸 Görsel: {files[0]} (kırpılmış kafa profili olarak doğrulanacak)\n")
 
     # Supervisor'ı başlat — tüm ajanları koordine eder
     supervisor = SupervisorAgent(image_path=query_path)

@@ -6,14 +6,14 @@ Deniz kaplumbağalarını **post-oküler scut** (göz çevresi pul) desenleri ü
 
 - **Pattern:** Hierarchical (Supervisor → Workers)
 - **İletişim:** Shared Blackboard
-- **LLM:** Google Gemini 1.5 Flash (supervisor recovery + vision verification + reporting)
+- **LLM:** Google Gemini 2.5 Flash (supervisor recovery + head-profile validation + reporting)
 - **Embedding:** ResNet50 (ImageNet)
 - **Eşleştirme:** Cosine Similarity
 
 ```
 SupervisorAgent
    ├── AuditWorker            (girdi doğrulama)
-   ├── HeadDetectionWorker    (OpenCV + Gemini Vision)
+   ├── HeadDetectionWorker    (Gemini ile kırpılmış kafa profili doğrulama)
    ├── PreprocessingWorker    (224x224 normalize)
    ├── RecognitionWorker      (ResNet50 embedding)
    ├── EvaluationWorker       (Cosine Similarity)
@@ -51,7 +51,7 @@ turtle-id/
 │   │       ├── sag_profil.jpg
 │   │       ├── sol_profil.jpg
 │   │       └── metadata.json
-│   └── query/               # Tanımlanacak görsel
+│   └── query/               # Tanımlanacak kırpılmış kafa profili
 ├── logs/
 │   └── mission_log.md
 ├── .env
@@ -63,7 +63,7 @@ turtle-id/
 
 1. `data/database/` altında her kaplumbağa için ayrı klasör aç.
 2. Her klasöre `sag_profil.jpg`, `sol_profil.jpg` ve `metadata.json` koy.
-3. `data/query/` içine tanımlanacak görseli koy.
+3. `data/query/` içine tanımlanacak kırpılmış sağ/sol yan kafa profili görselini koy.
 4. Çalıştır:
 
 ```bash
@@ -73,6 +73,7 @@ python main.py
 ## Çıktılar
 
 - `logs/mission_log.md` — Her görevin detaylı adım logu
+- `logs/debug_head_crop.jpg` — Gemini tarafından doğrulanan sorgu kafa görseli
 - `gelisim_raporu.md` — Gemini tarafından yazılmış günlük gelişim raporu
 
 ## Eşleşme Eşikleri

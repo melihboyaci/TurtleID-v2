@@ -12,7 +12,6 @@ class PreprocessingWorker(BaseWorker):
     """
 
     TARGET_SIZE: Tuple[int, int] = (224, 224)
-    CROP_RATIO: float = 0.8
 
     def execute(self) -> bool:
         if self.bb.head_crop is None:
@@ -32,8 +31,4 @@ class PreprocessingWorker(BaseWorker):
         return True
 
     def _process(self, image: np.ndarray) -> np.ndarray:
-        h, w = image.shape[:2]
-        nw, nh = int(w * self.CROP_RATIO), int(h * self.CROP_RATIO)
-        left, top = (w - nw) // 2, (h - nh) // 2
-        cropped = image[top:top+nh, left:left+nw]
-        return cv2.resize(cropped, self.TARGET_SIZE)
+        return cv2.resize(image, self.TARGET_SIZE)
