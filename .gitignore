@@ -1,0 +1,49 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual environment
+venv/
+env/
+.venv/
+
+# Environment variables
+.env
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# TensorFlow / Model cache
+*.h5
+*.tflite
+*.pb
+
+# Logs (otomatik oluşur)
+logs/mission_log.md
+gelisim_raporu.md
+
+# Data - görseller (büyük dosyalar)
+data/database/**/sag_profil.jpg
+data/database/**/sol_profil.jpg
+data/query/*.jpg
+data/query/*.jpeg
+data/query/*.png
+
+# metadata.json ve README'ler repoda kalsın
+!data/database/**/metadata.json
+!data/database/README.md
+!data/query/.gitkeep
