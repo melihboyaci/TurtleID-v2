@@ -60,20 +60,16 @@ class HeadDetectionWorker(BaseWorker):
         try:
             pil_img = self._prepare_prompt_image(image_rgb)
             prompt = (
-                "GÖREV: Bu görselde net bir şekilde DENİZ KAPLUMBAĞASI "
-                "KAFA PROFİLİ var mı?\n\n"
-                "Kabul kriterleri (HEPSİ varsa Evet):\n"
-                "- Görsel kırpılmış kafa fotoğrafı gibi görünür\n"
-                "- LATERAL (yan) görünüm vardır: sağ veya sol yan profil\n"
-                "- Göz net görünür\n"
-                "- Gaga/ağız net görünür\n"
-                "- Kafa veya boyun kabuktan/gövdeden ayırt edilebilir\n\n"
-                "Reddetme nedenleri (BİRİ varsa Hayır):\n"
-                "- Görselde kafa yoktur\n"
-                "- Yüzgeç/palet, kabuk veya gövde ana odaktır\n"
-                "- Ön, arka veya üst görünüm vardır; yan profil değildir\n"
-                "- Görsel çok bulanık, çok karanlık veya kafa detayı belirsizdir\n"
-                "- Bu bir deniz kaplumbağası kafa profili değildir\n\n"
+                "GÖREV: Bu görselde bir DENİZ KAPLUMBAĞASI KAFA PROFİLİ var mı?\n\n"
+                "Lütfen ÇOK ESNEK ve AFFEDİCİ ol. Bu görseller doğada çekildiği için bulanık, soluk veya karanlık olabilir. "
+                "Eğer fotoğrafta bir kaplumbağa kafası görebiliyorsan kabul et.\n\n"
+                "Kabul kriterleri (BİR TANESİ BİLE yeterlidir):\n"
+                "- Görselde deniz kaplumbağasına ait bir kafa veya yüz yapısı görünüyorsa\n"
+                "- Göz veya ağız tam net olmasa bile genel olarak bir kafa profili anlaşılabiliyorsa\n"
+                "- Fotoğraf biraz bulanık veya karanlık olsa da kafa olduğu seçilebiliyorsa\n\n"
+                "Reddetme nedenleri (SADECE şu durumlarda reddet):\n"
+                "- Görselde kesinlikle kaplumbağa kafa/yüz parçası YOKSA (sadece kabuk, sadece kum, sadece su vb.)\n"
+                "- Görsel kaplumbağa değil de tamamen alakasız başka bir nesneyse\n\n"
                 "SADECE şu JSON formatında yanıt ver, başka metin yazma:\n"
                 '{\n'
                 '  "is_valid": true veya false,\n'

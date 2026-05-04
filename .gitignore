@@ -12,6 +12,7 @@ build/
 venv/
 env/
 .venv/
+.venv_wsl/
 
 # Environment variables
 .env
@@ -29,6 +30,7 @@ Desktop.ini
 
 # TensorFlow / Model cache
 *.h5
+*.keras
 *.tflite
 *.pb
 
@@ -38,6 +40,7 @@ logs/*.jpg
 logs/*.jpeg
 logs/*.png
 gelisim_raporu.md
+SON_GELISTIRMELER_RAPORU.md
 !logs/.gitkeep
 
 # Data - görseller (büyük dosyalar)
@@ -48,6 +51,7 @@ data/query/*.jpg
 data/query/*.jpeg
 data/query/*.png
 turtles-data/
+data/database/embeddings_cache.json
 
 # metadata.json ve README'ler repoda kalsın
 !data/database/**/metadata.json

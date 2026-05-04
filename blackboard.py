@@ -16,7 +16,7 @@ class BlackBoard:
     audit_result: dict = field(default_factory=dict)
     head_crop: Optional[np.ndarray] = None
     head_confidence: float = 0.0
-    processed_image: Optional[np.ndarray] = None
+    model_ready_tensor: Optional[np.ndarray] = None
     query_embedding: Optional[np.ndarray] = None
     db_embeddings: list = field(default_factory=list)
     db_files: list = field(default_factory=list)

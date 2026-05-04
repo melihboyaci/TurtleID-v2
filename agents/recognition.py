@@ -4,17 +4,18 @@ import datetime
 from typing import Optional
 import cv2
 import numpy as np
+import tensorflow as tf
 from agents import BaseWorker
-from tensorflow.keras.applications.resnet50 import ResNet50, preprocess_input
+from agents.preprocessing import to_tensor
 
-CACHE_FILE     = "data/database/embeddings_cache.json"
-LEFT_PATTERNS  = ["head_left", "head_topleft", "sol_profil"]
-RIGHT_PATTERNS = ["head_right", "head_topright", "sag_profil"]
+MODEL_PATH = "turtle_embedding_model.keras"
+CACHE_FILE = "data/database/embeddings_cache.json"
 
 
 class RecognitionWorker(BaseWorker):
     """
-    ResNet50 ile embedding çıkarır.
+    Triplet Loss / Siamese Network ile eğitilmiş özel model üzerinden
+    256 boyutlu L2-normalize embedding çıkarır.
 
     Bilimsel temel (Chabrolle & Dumont-Dayot, 2015):
     Her kaplumbağanın sağ VE sol profili ayrı ayrı
@@ -22,24 +23,19 @@ class RecognitionWorker(BaseWorker):
     o bireyin "parmak izi" vektörü olur.
     """
 
-    TARGET_SIZE       = (224, 224)
-    CLAHE_CLIP_LIMIT: float = 2.0
-    CLAHE_TILE_SIZE: tuple  = (8, 8)
-    SHARPEN_STRENGTH: float = 0.3
-
     def __init__(self, blackboard):
         super().__init__(blackboard)
-        self.log("ResNet50 yükleniyor...")
-        self.model = ResNet50(weights='imagenet', include_top=False, pooling='avg')
-        self.log("Model hazır.")
+        self.log(f"Özel model yükleniyor: {MODEL_PATH}")
+        self.model = tf.keras.models.load_model(MODEL_PATH, compile=False)
+        self.log(f"Model hazır. Çıktı boyutu: {self.model.output_shape}")
 
     def execute(self) -> bool:
         """Query + DB embedding'lerini üretir, blackboard'a yazar."""
-        # 1. Query embedding
-        if self.bb.processed_image is None:
-            self.bb.fail(self.name, "İşlenmiş görsel yok.")
+        # 1. Query embedding — PreprocessingWorker tarafından hazırlanmış tensörü kullan
+        if self.bb.model_ready_tensor is None:
+            self.bb.fail(self.name, "model_ready_tensor yok (PreprocessingWorker çalışmadı mı?)")
             return False
-        self.bb.query_embedding = self._extract(self.bb.processed_image)
+        self.bb.query_embedding = self.model.predict(self.bb.model_ready_tensor, verbose=0)[0]
 
         # 2. DB embeddings (sağ + sol profil ortalaması)
         db_dir = "data/database"
@@ -64,24 +60,25 @@ class RecognitionWorker(BaseWorker):
             image_count = len(jpg_files)
 
             cached = cache.get(folder)
-            if cached and cached.get("image_count") == image_count:
-                embedding = np.array(cached["embedding"])
-                self.log(f"{folder}: cache'den yüklendi ({image_count} görsel).")
+            # Yeni format: "embeddings" (çoğul) anahtarı + image_count
+            if cached and cached.get("image_count") == image_count and "embeddings" in cached:
+                embeddings = np.array(cached["embeddings"])
+                self.log(f"{folder}: cache'den yüklendi ({image_count} görsel, {len(embeddings)} embedding).")
             else:
-                embedding = self._extract_dual_profile(folder_path, jpg_files)
-                if embedding is not None:
+                embeddings = self._extract_all_embeddings(folder_path, jpg_files)
+                if embeddings is not None and len(embeddings) > 0:
                     cache[folder] = {
-                        "embedding"  : embedding.tolist(),
+                        "embeddings" : embeddings.tolist(),
                         "image_count": image_count,
                         "computed_at": datetime.datetime.now().isoformat(timespec="seconds"),
                     }
                     cache_updated = True
 
-            if embedding is not None:
+            if embeddings is not None and len(embeddings) > 0:
                 name = self._read_name(folder_path, folder)
                 self.bb.db_files.append(name)
-                self.bb.db_embeddings.append(embedding)
-                self.log(f"{name}: embedding hazır.")
+                self.bb.db_embeddings.append(embeddings)
+                self.log(f"{name}: {len(embeddings)} embedding hazır.")
 
         if cache_updated:
             self._save_cache(cache)
@@ -93,70 +90,29 @@ class RecognitionWorker(BaseWorker):
         self.log(f"{len(self.bb.db_embeddings)} kaplumbağa için embedding üretildi.")
         return True
 
-    def _extract_dual_profile(self, folder_path: str, jpg_files: list) -> Optional[np.ndarray]:
+    def _extract_all_embeddings(self, folder_path: str, jpg_files: list) -> Optional[np.ndarray]:
         """
-        Klasördeki .jpg dosyalarını LEFT_PATTERNS / RIGHT_PATTERNS'a göre gruplar.
-        Her grubun embedding ortalamasını alır; iki grup ortalamasının
-        ortalamasını döner. Hiçbir pattern'a uymayan dosyalar (ör: head_top) atlanır.
-        En az bir grup doluysa sonuç üretilir; her ikisi de boşsa None döner.
+        Klasördeki tüm .jpg dosyaları için ayrı ayrı embedding çıkarır.
+        Max-of-images yaklaşımı: averaging-blur problemini önlemek için
+        ortalama almak yerine tüm embedding'leri döner.
+        EvaluationWorker query ile her embedding'in benzerliğini hesaplayıp
+        max'i alacak.
         """
-        left_embeddings:  list = []
-        right_embeddings: list = []
+        embeddings: list = []
 
         for filename in jpg_files:
-            fname_lower = filename.lower()
             img = cv2.imread(os.path.join(folder_path, filename))
             if img is None:
                 continue
 
-            img_rgb     = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-            img_rgb     = self._enhance(img_rgb)
-            img_resized = cv2.resize(img_rgb, self.TARGET_SIZE)
-            emb         = self._extract(img_resized)
+            img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+            emb = self.model.predict(to_tensor(img_rgb), verbose=0)[0]
+            embeddings.append(emb)
 
-            if any(p in fname_lower for p in LEFT_PATTERNS):
-                left_embeddings.append(emb)
-            elif any(p in fname_lower for p in RIGHT_PATTERNS):
-                right_embeddings.append(emb)
-            # else: head_top gibi eşleşmeyen dosyalar atlanır
-
-        group_means = []
-        if left_embeddings:
-            group_means.append(np.mean(left_embeddings, axis=0))
-        if right_embeddings:
-            group_means.append(np.mean(right_embeddings, axis=0))
-
-        if not group_means:
+        if not embeddings:
             return None
 
-        # Sol ve sağ grup ortalamalarının ortalaması = bireyin parmak izi
-        return np.mean(group_means, axis=0)
-
-    def _enhance(self, image: np.ndarray) -> np.ndarray:
-        """Preprocessing ile aynı CLAHE pipeline."""
-        lab = cv2.cvtColor(image, cv2.COLOR_RGB2LAB)
-        l, a, b = cv2.split(lab)
-
-        clahe = cv2.createCLAHE(
-            clipLimit=self.CLAHE_CLIP_LIMIT,
-            tileGridSize=self.CLAHE_TILE_SIZE
-        )
-        l_enhanced = clahe.apply(l)
-
-        lab_enhanced = cv2.merge([l_enhanced, a, b])
-        enhanced = cv2.cvtColor(lab_enhanced, cv2.COLOR_LAB2RGB)
-
-        if self.SHARPEN_STRENGTH > 0:
-            blurred = cv2.GaussianBlur(enhanced, (0, 0), 3)
-            enhanced = cv2.addWeighted(
-                enhanced,
-                1 + self.SHARPEN_STRENGTH,
-                blurred,
-                -self.SHARPEN_STRENGTH,
-                0
-            )
-
-        return enhanced
+        return np.array(embeddings)
 
     def _load_cache(self) -> dict:
         """embeddings_cache.json dosyasını yükler; yoksa boş dict döner."""
@@ -180,8 +136,3 @@ class RecognitionWorker(BaseWorker):
                 return data.get("name", fallback)
         return fallback.capitalize()
 
-    def _extract(self, image: np.ndarray) -> np.ndarray:
-        """Tek bir görselden ResNet50 embedding çıkarır."""
-        batch = np.expand_dims(image, axis=0).astype(np.float32)
-        preprocessed = preprocess_input(batch)
-        return self.model.predict(preprocessed, verbose=0)[0]

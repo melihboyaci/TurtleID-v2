@@ -1,84 +1,46 @@
-import os
 import cv2
 import numpy as np
-from typing import Tuple
+from tensorflow.keras.applications.resnet50 import preprocess_input
 from agents import BaseWorker
+
+TARGET_SIZE = (224, 224)
+
+
+def to_tensor(img_rgb: np.ndarray) -> np.ndarray:
+    """
+    RGB numpy görselini ResNet50'ye hazır (1, 224, 224, 3) tensöre dönüştürür.
+
+    Modül düzeyinde tanımlanmıştır; hem PreprocessingWorker (query yolu)
+    hem de RecognitionWorker (DB görselleri) aynı fonksiyonu import eder.
+    Bu sayede tensör hazırlama mantığı tek bir yerde (DRY) yaşar.
+    """
+    if img_rgb.shape[:2] != TARGET_SIZE:
+        img_rgb = cv2.resize(img_rgb, TARGET_SIZE)
+    tensor = np.expand_dims(img_rgb, axis=0).astype(np.float32)
+    return preprocess_input(tensor)
 
 
 class PreprocessingWorker(BaseWorker):
     """
-    Kafa görselini normalize eder.
-    Blackboard'dan head_crop okur, processed_image yazar.
-    OCP: target_size parametrik — farklı model için değiştirmek gerekmez.
-    """
+    SRP — Tek Sorumluluk: "Model için Tensör Hazırlığı"
 
-    TARGET_SIZE: Tuple[int, int] = (224, 224)
-    CLAHE_CLIP_LIMIT: float = 2.0
-    CLAHE_TILE_SIZE: tuple = (8, 8)
-    SHARPEN_STRENGTH: float = 0.3
+    Görüntü iyileştirme (CLAHE vb.) YAPMAZ.
+    Blackboard akışı: head_crop → model_ready_tensor
+
+    Adımlar:
+    1. head_crop'u blackboard'dan oku (HeadDetectionWorker'ın RGB çıktısı)
+    2. (224, 224) boyutuna getir
+    3. (1, 224, 224, 3) şekline genişlet
+    4. ResNet50 preprocess_input'tan geçir
+    5. Hazır tensörü model_ready_tensor olarak yaz
+    """
 
     def execute(self) -> bool:
         if self.bb.head_crop is None:
-            self.bb.fail(self.name, "Kırpılmış kafa görseli yok.")
+            self.bb.fail(self.name, "head_crop yok.")
             return False
 
-        processed = self._process(self.bb.head_crop)
-        if processed is None:
-            self.bb.fail(self.name, "Görsel işlenemedi.")
-            return False
-
-        self.bb.processed_image = processed
-
-        os.makedirs("logs", exist_ok=True)
-        cv2.imwrite(
-            "logs/debug_enhanced_head.jpg",
-            cv2.cvtColor(processed, cv2.COLOR_RGB2BGR)
-        )
-
-        # DB görsellerini de işle
-        self.bb.db_embeddings = []  # Recognition'da doldurulacak
-        self.log(f"Görsel {self.TARGET_SIZE} boyutuna getirildi ve CLAHE uygulandı.")
+        tensor = to_tensor(self.bb.head_crop)
+        self.bb.model_ready_tensor = tensor
+        self.log(f"Tensör hazırlandı: {tensor.shape}, dtype={tensor.dtype}")
         return True
-
-    def enhance_scales(self, image: np.ndarray) -> np.ndarray:
-        """
-        Su altı kaplumbağa fotoğraflarındaki düşük kontrastı
-        giderir ve pul sınırlarını belirginleştirir.
-
-        Pipeline:
-        1. RGB → LAB dönüşümü
-        2. L kanalına CLAHE (kontrast iyileştirme)
-        3. LAB → RGB geri dönüşüm
-        4. Hafif Unsharp Masking (pul netleştirme)
-
-        Not: clipLimit=2.0 bilinçli seçim — agresif CLAHE
-        ResNet50'nin ImageNet dağılımından uzaklaştırır.
-        """
-        lab = cv2.cvtColor(image, cv2.COLOR_RGB2LAB)
-        l, a, b = cv2.split(lab)
-
-        clahe = cv2.createCLAHE(
-            clipLimit=self.CLAHE_CLIP_LIMIT,
-            tileGridSize=self.CLAHE_TILE_SIZE
-        )
-        l_enhanced = clahe.apply(l)
-
-        lab_enhanced = cv2.merge([l_enhanced, a, b])
-        enhanced = cv2.cvtColor(lab_enhanced, cv2.COLOR_LAB2RGB)
-
-        if self.SHARPEN_STRENGTH > 0:
-            blurred = cv2.GaussianBlur(enhanced, (0, 0), 3)
-            enhanced = cv2.addWeighted(
-                enhanced,
-                1 + self.SHARPEN_STRENGTH,
-                blurred,
-                -self.SHARPEN_STRENGTH,
-                0
-            )
-
-        return enhanced
-
-    def _process(self, image: np.ndarray) -> np.ndarray:
-        enhanced = self.enhance_scales(image)
-        resized  = cv2.resize(enhanced, self.TARGET_SIZE)
-        return resized
