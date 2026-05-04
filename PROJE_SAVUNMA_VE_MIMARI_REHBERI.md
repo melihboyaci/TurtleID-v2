@@ -5,6 +5,7 @@ Bu doküman, `TurtleID-v2` projesinin akademik savunmasında kullanılmak üzere
 Doküman hazırlanırken proje içindeki gerçek dosyalar temel alınmıştır:
 
 - `main.py`
+- `config.py`
 - `blackboard.py`
 - `agents/__init__.py`
 - `agents/supervisor.py`
@@ -14,6 +15,7 @@ Doküman hazırlanırken proje içindeki gerçek dosyalar temel alınmıştır:
 - `agents/recognition.py`
 - `agents/evaluation.py`
 - `agents/reporting.py`
+- `agents/tensor_utils.py`
 - `report_manager.py`
 - `kayit_yardimcisi.py`
 - `README.md`
@@ -297,9 +299,12 @@ Bu projede ajanlar birbirlerini doğrudan çağırmaz. Bunun yerine ortak blackb
 
 Bu yapı sayesinde worker'lar birbirlerinin sınıf isimlerini, metotlarını veya implementasyon detaylarını bilmez.
 
+**Ajanlar Arası Doğrudan Bağımlılığın Önlenmesi:**
+Ajanlar arası bağımlılığı tamamen kaldırmak için, `PreprocessingWorker` ve `RecognitionWorker`'ın ortak ihtiyaç duyduğu matematiksel tensör dönüşüm mantığı `agents/tensor_utils.py` adlı bağımsız bir utility modülüne taşınmıştır. Böylece ajanlar birbirlerini import etmek yerine, bu bağımsız yardımcı modülü kullanırlar. (Dependency Inversion ve DRY prensipleri).
+
 Savunmada kullanılabilecek ifade:
 
-> Blackboard, ajanlar arasında doğrudan bağımlılığı kaldıran ortak bir görev belleğidir. Her ajan yalnızca blackboard üzerinde kendi ilgilendiği alanları okur ve kendi çıktısını yazar. Böylece ajanlar arasında loose coupling sağlanır.
+> Blackboard, ajanlar arasında doğrudan bağımlılığı kaldıran ortak bir görev belleğidir. Her ajan yalnızca blackboard üzerinde kendi ilgilendiği alanları okur ve kendi çıktısını yazar. Ayrıca ortak matematiksel operasyonları bağımsız utility modüllerine (örn. tensor_utils) taşıyarak worker'lar arası tight coupling durumunu tamamen ortadan kaldırdım.
 
 ---
 
@@ -452,6 +457,10 @@ Her worker tek bir sorumluluğa sahiptir:
 
 Bu görev ayrımı, Single Responsibility Principle'ın açık bir uygulamasıdır.
 
+### 11.5. Kod İçi SOLID Belgelendirmesi
+
+Gerçekleştirilen mimari refactoring sonucunda, tüm `agents` modüllerinde, `config.py` ve `blackboard.py` dosyalarında modül başına açıklayıcı bir "SOLID / Clean Code Uyum Notu" eklenmiştir. Bir hoca veya jüri üyesi doğrudan kodu okuduğunda, o dosyanın mimarideki rolünü ve hangi SOLID kurallarına uyduğunu anında görebilir.
+
 ---
 
 ## 12. Clean Code Yaklaşımı
@@ -496,18 +505,19 @@ Bu alanlar sistemin veri akışını okunabilir hale getirir.
 
 Bu yapı hem okunabilirliği hem test edilebilirliği artırır.
 
-### 12.4. Sabitlerin Sınıf Seviyesinde Tanımlanması
+### 12.4. Sabitlerin Merkezi Yönetimi (`config.py`)
 
-Örneğin:
+Daha önce kod içine dağılmış olan sihirli sayılar (magic numbers), dosya yolları ve yapılandırma ayarları, `config.py` modülü altında merkezileştirilmiştir. 
 
 ```python
+GEMINI_MODEL_NAME = "gemini-2.5-flash"
 MATCH_THRESHOLD = 0.85
 POSSIBLE_THRESHOLD = 0.70
 TARGET_SIZE = (224, 224)
 MAX_FILE_SIZE_MB = 10
 ```
 
-Bu sayede sihirli sayılar kod içine dağılmamıştır. Eşik ve parametreler görünür hale getirilmiştir.
+Bu sayede, Single Responsibility Principle ve Open/Closed Principle desteklenmiştir; bir ayar değiştiğinde kod değil, sadece konfigürasyon dosyası güncellenir. `load_dotenv()` gibi işlemler de sadece başlangıç noktalarında (Supervisor ve Config) yapılarak DRY ihlali engellenmiştir.
 
 ### 12.5. Merkezi Hata Yönetimi
 
@@ -682,17 +692,16 @@ data/database/
 
 `RecognitionWorker`, bu klasör yapısını kullanarak her birey için sağ ve sol profil embedding'lerini çıkarır.
 
-Eğer iki profil de varsa ortalaması alınır:
+Bireylerin her görselinden ayrı ayrı embedding vektörleri çıkarılır ve bir liste olarak (çoğul `embeddings`) saklanır.
 
-```python
-return np.mean(embeddings, axis=0)
-```
+`EvaluationWorker` bu embedding'leri **Max-of-Images (Galeri/Probe)** yaklaşımıyla değerlendirir:
+Sorgu görseli (probe), o bireye ait (galerideki) tüm görsellerle ayrı ayrı karşılaştırılır ve **en yüksek benzerlik skoru (max)** o bireyin nihai skoru olarak kabul edilir.
 
-Bu ortalama vektör, bireyin daha dengeli bir görsel temsili olarak kullanılır.
+Bu yaklaşım, eski "ortalama alma (averaging)" yönteminden kaynaklanabilecek vektörel bulanıklığı (blur) önler.
 
 Savunmada kullanılabilecek ifade:
 
-> Veritabanı yapısında her birey için sağ ve sol profil ayrı tutulur. RecognitionWorker bu iki profilden embedding çıkarıp ortalamasını alır. Böylece bireyin tek bir açıya bağımlı olmayan daha kararlı bir görsel temsili oluşturulur.
+> Veritabanı yapısında her birey için sağ ve sol profiller ayrı tutulur. Sistemin eski halinde bu profillerin ortalaması alınıyordu, ancak yeni mimaride Max-of-Images (Galeri/Probe) yaklaşımına geçtik. RecognitionWorker her görselin embedding'ini ayrı ayrı saklar, EvaluationWorker ise sorgu görseli ile bu görseller arasındaki en yüksek benzerliği o bireyin skoru olarak kabul eder. Bu sayede averaging-blur problemini önlemiş olduk.
 
 ---
 
@@ -766,7 +775,7 @@ self.bb.match_result = {
     "name": best_name,
     "score": best_score,
     "status": status,
-    "profile_note": "Sağ+sol profil ortalaması kullanıldı",
+    "profile_note": "Max-of-images yaklaşımı: galeri bazlı en yüksek benzerlik kullanıldı",
 }
 ```
 

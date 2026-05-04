@@ -1,7 +1,52 @@
+"""
+supervisor.py — Hiyerarşik Supervisor Ajanı (SupervisorAgent)
+==============================================================
+
+Çoklu Ajan Sistemi'nin (MAS) en üst düzey koordinatörüdür.
+Worker ajanları belirli bir sırada (pipeline) çalıştırır, her
+adımın sonucunu BlackBoard'dan okur ve hata durumunda Gemini LLM'e
+danışarak recovery kararı verir.
+
+Mimari Rolü:
+    - Hierarchical MAS'ta "Manager/Supervisor" katmanını temsil eder.
+    - Worker'ları doğrudan çağırır ancak iş mantığını delege eder.
+    - Veri akışı BlackBoard üzerinden gerçekleşir; Supervisor yalnızca
+      başarı/başarısızlık kontrol eder.
+
+Pipeline Sırası:
+    1. AuditWorker         → Girdi doğrulama
+    2. HeadDetectionWorker → Kafa profili doğrulama (Gemini Vision)
+    3. PreprocessingWorker → Tensör hazırlığı
+    4. RecognitionWorker   → Embedding çıkarma
+    5. EvaluationWorker    → Cosine similarity eşleşme
+    6. ReportingWorker     → Gemini ile rapor üretimi
+
+# ─────────────────────────────────────────────────────────────
+# SOLID / Clean Code Uyum Notu
+# ─────────────────────────────────────────────────────────────
+# SRP  : Supervisor yalnızca koordinasyon yapar; iş mantığı
+#        worker'larda yaşar.
+# OCP  : Pipeline'a yeni bir ajan eklemek için PIPELINE listesine
+#        ve workers dict'ine kayıt eklemek yeterlidir. Mevcut
+#        worker'lar değişmez.
+#        Not: Worker'ları otomatik keşfeden (plugin registry) bir yapı
+#        daha güçlü OCP sağlardı; ancak ödev kapsamında açık liste
+#        yaklaşımı tercih edilmiştir — pipeline sırası kritik olduğu
+#        için bu bilinçli bir trade-off'tur.
+# DIP  : Supervisor, BaseWorker arayüzüne bağımlıdır. Somut worker
+#        sınıfları yalnızca __init__'te oluşturulur.
+# Mediator Pattern: Supervisor, ajanlar arası koordinasyonun tek
+#        noktasıdır; ajanlar birbirine referans vermez.
+# ─────────────────────────────────────────────────────────────
+"""
+
 import os
+from datetime import datetime
+
 import google.generativeai as genai
-from dotenv import load_dotenv
+
 from blackboard import BlackBoard
+from config import GEMINI_API_KEY, GEMINI_MODEL_NAME, LOG_DIR
 from agents.audit import AuditWorker
 from agents.head_detection import HeadDetectionWorker
 from agents.preprocessing import PreprocessingWorker
@@ -12,18 +57,22 @@ from agents.reporting import ReportingWorker
 
 class SupervisorAgent:
     """
-    Tüm worker ajanları koordine eden, Gemini LLM destekli
-    Hiyerarşik Supervisor.
+    Tüm worker ajanları koordine eden Gemini LLM destekli Supervisor.
 
     Sorumlulukları:
-    1. Görevi worker'lara delege eder
-    2. Her adımın sonucunu blackboard'dan okur
-    3. Hata durumunda recovery kararı verir
-    4. Gemini ile nihai karar analizi yapar
+        1. Görevi worker'lara sırayla delege eder.
+        2. Her adımın sonucunu BlackBoard'dan kontrol eder.
+        3. Hata durumunda Gemini'ye danışarak recovery kararı verir.
+        4. Misyon logunu dosyaya kaydeder.
+
+    Attributes:
+        bb: Paylaşılan BlackBoard nesnesi.
+        llm: Gemini GenerativeModel istemcisi (recovery kararları için).
+        workers: Pipeline adı → Worker nesnesi eşlemesi.
     """
 
-    # Worker çalıştırma sırası
-    PIPELINE = [
+    # Worker çalıştırma sırası — pipeline sırası kritik!
+    PIPELINE: list[str] = [
         "audit",
         "head_detection",
         "preprocessing",
@@ -32,15 +81,24 @@ class SupervisorAgent:
         "reporting",
     ]
 
-    def __init__(self, image_path: str):
-        load_dotenv()
+    def __init__(self, image_path: str) -> None:
+        """
+        Supervisor'ı başlatır: BlackBoard oluşturur, Gemini'yi yapılandırır
+        ve tüm worker'ları aynı BlackBoard ile ilklendirir.
+
+        Args:
+            image_path: Sorgulanacak görselin dosya yolu.
+        """
+        # Gemini API yapılandırması — process-wide tek seferlik.
+        # Worker'lar bu çağrıya güvenir; kendi içlerinde tekrar yapmazlar.
+        genai.configure(api_key=GEMINI_API_KEY)
+
         self.bb = BlackBoard()
         self.bb.query_image_path = image_path
 
-        genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-        self.llm = genai.GenerativeModel("gemini-2.5-flash")
+        self.llm = genai.GenerativeModel(GEMINI_MODEL_NAME)
 
-        # Worker'ları başlat (hepsi aynı blackboard'u paylaşır)
+        # Worker'ları başlat (hepsi aynı BlackBoard'u paylaşır)
         self.workers = {
             "audit":          AuditWorker(self.bb),
             "head_detection": HeadDetectionWorker(self.bb),
@@ -52,8 +110,14 @@ class SupervisorAgent:
 
     def delegate(self, worker_name: str) -> bool:
         """
-        Supervisor'ın ana metodu: worker'a görevi delege eder,
-        sonucu blackboard'dan okur, başarı/başarısızlık döner.
+        Belirtilen worker'a görev delege eder ve sonucu döndürür.
+
+        Args:
+            worker_name: PIPELINE listesindeki worker adı.
+
+        Returns:
+            True: Worker başarıyla tamamlandı.
+            False: Worker başarısız oldu.
         """
         worker = self.workers[worker_name]
         self.bb.set_step(worker_name.upper())
@@ -70,8 +134,14 @@ class SupervisorAgent:
 
     def run_mission(self) -> BlackBoard:
         """
-        Tüm pipeline'ı yönetir. Her adımda blackboard'u kontrol eder.
-        Hata durumunda Gemini'ye danışarak recovery kararı verir.
+        Tüm pipeline'ı yönetir.
+
+        Her adımda BlackBoard'u kontrol eder. Hata durumunda Gemini'ye
+        danışarak devam/dur kararı verir.
+
+        Returns:
+            BlackBoard: Görev sonucu — mission_status ve match_result
+            alanlarından okunabilir.
         """
         self.bb.mission_status = "RUNNING"
         self.bb.log("Supervisor", "=== MİSYON BAŞLADI ===")
@@ -97,8 +167,13 @@ class SupervisorAgent:
 
     def _consult_gemini_for_recovery(self, failed_step: str) -> dict:
         """
-        Worker başarısız olunca Gemini'ye sorar:
-        'Devam etmeli miyiz yoksa durmalı mıyız?'
+        Worker başarısız olunca Gemini'ye recovery danışması yapar.
+
+        Args:
+            failed_step: Başarısız olan pipeline adımı.
+
+        Returns:
+            {"continue": bool, "reason": str} formatında karar.
         """
         prompt = f"""
         Kaplumbağa kimlik tespit sisteminde '{failed_step}' adımı başarısız oldu.
@@ -114,8 +189,8 @@ class SupervisorAgent:
             text = response.text
             continue_mission = "KARAR: DEVAM" in text
             reason = next(
-                (l.replace("NEDEN:", "").strip()
-                 for l in text.split("\n") if "NEDEN:" in l),
+                (line.replace("NEDEN:", "").strip()
+                 for line in text.split("\n") if "NEDEN:" in line),
                 "Gemini analizi tamamlandı."
             )
             return {"continue": continue_mission, "reason": reason}
@@ -124,10 +199,9 @@ class SupervisorAgent:
             return {"continue": False, "reason": "Gemini'ye ulaşılamadı, güvenli duruş."}
 
     def _save_mission_log(self) -> None:
-        """Blackboard'daki logu dosyaya yazar."""
-        os.makedirs("logs", exist_ok=True)
-        with open("logs/mission_log.md", "a", encoding="utf-8") as f:
-            from datetime import datetime
+        """BlackBoard'daki misyon logunu dosyaya yazar."""
+        os.makedirs(LOG_DIR, exist_ok=True)
+        with open(os.path.join(LOG_DIR, "mission_log.md"), "a", encoding="utf-8") as f:
             f.write(f"\n## Görev — {datetime.now().strftime('%Y-%m-%d %H:%M')}\n\n")
             f.write(f"**Durum:** {self.bb.mission_status}\n\n")
             for entry in self.bb.mission_log:

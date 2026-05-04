@@ -1,41 +1,52 @@
-import cv2
-import numpy as np
-from tensorflow.keras.applications.resnet50 import preprocess_input
+"""
+preprocessing.py — Tensör Hazırlık Ajanı (PreprocessingWorker)
+===============================================================
+
+Pipeline'ın üçüncü adımı. HeadDetectionWorker tarafından doğrulanmış
+RGB kafa görselini, embedding modeline hazır tensör formatına dönüştürür.
+
+BlackBoard Akışı:
+    Okur  : head_crop (np.ndarray, RGB)
+    Yazar : model_ready_tensor (np.ndarray, shape=(1, 224, 224, 3))
+
+Bu worker görüntü iyileştirme (CLAHE, histogram eşitleme vb.) YAPMAZ.
+Tek sorumluluğu tensör dönüşümüdür.
+
+# ─────────────────────────────────────────────────────────────
+# SOLID / Clean Code Uyum Notu
+# ─────────────────────────────────────────────────────────────
+# SRP  : Yalnızca "BlackBoard'dan RGB oku → tensöre çevir → geri yaz"
+#        işini yapar. Görüntü iyileştirme veya model çağrısı yoktur.
+# DRY  : Tensör dönüşüm mantığı agents/tensor_utils.py'de yaşar.
+#        Bu worker ve RecognitionWorker aynı fonksiyonu kullanır.
+# DIP  : to_tensor() fonksiyonu bağımsız bir utility modülünden gelir;
+#        worker'lar arası doğrudan bağımlılık yoktur.
+# ─────────────────────────────────────────────────────────────
+"""
+
 from agents import BaseWorker
-
-TARGET_SIZE = (224, 224)
-
-
-def to_tensor(img_rgb: np.ndarray) -> np.ndarray:
-    """
-    RGB numpy görselini ResNet50'ye hazır (1, 224, 224, 3) tensöre dönüştürür.
-
-    Modül düzeyinde tanımlanmıştır; hem PreprocessingWorker (query yolu)
-    hem de RecognitionWorker (DB görselleri) aynı fonksiyonu import eder.
-    Bu sayede tensör hazırlama mantığı tek bir yerde (DRY) yaşar.
-    """
-    if img_rgb.shape[:2] != TARGET_SIZE:
-        img_rgb = cv2.resize(img_rgb, TARGET_SIZE)
-    tensor = np.expand_dims(img_rgb, axis=0).astype(np.float32)
-    return preprocess_input(tensor)
+from agents.tensor_utils import to_tensor
 
 
 class PreprocessingWorker(BaseWorker):
     """
-    SRP — Tek Sorumluluk: "Model için Tensör Hazırlığı"
+    Kafa görselini (RGB numpy dizisi) modele hazır tensöre dönüştürür.
 
-    Görüntü iyileştirme (CLAHE vb.) YAPMAZ.
-    Blackboard akışı: head_crop → model_ready_tensor
-
-    Adımlar:
-    1. head_crop'u blackboard'dan oku (HeadDetectionWorker'ın RGB çıktısı)
-    2. (224, 224) boyutuna getir
-    3. (1, 224, 224, 3) şekline genişlet
-    4. ResNet50 preprocess_input'tan geçir
-    5. Hazır tensörü model_ready_tensor olarak yaz
+    Dönüşüm Adımları:
+        1. BlackBoard'dan ``head_crop`` alanını okur.
+        2. ``to_tensor()`` ile TARGET_SIZE'a ölçekler, batch boyutu ekler
+           ve ResNet50 preprocess_input uygular.
+        3. Sonucu ``model_ready_tensor`` olarak BlackBoard'a yazar.
     """
 
     def execute(self) -> bool:
+        """
+        Tensör hazırlığını gerçekleştirir.
+
+        Returns:
+            True: Tensör başarıyla hazırlandı ve BlackBoard'a yazıldı.
+            False: head_crop bulunamadı (önceki ajan başarısız).
+        """
         if self.bb.head_crop is None:
             self.bb.fail(self.name, "head_crop yok.")
             return False
