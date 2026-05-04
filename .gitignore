@@ -43,9 +43,11 @@ gelisim_raporu.md
 # Data - görseller (büyük dosyalar)
 data/database/**/sag_profil.jpg
 data/database/**/sol_profil.jpg
+data/database/**/head_*.jpg
 data/query/*.jpg
 data/query/*.jpeg
 data/query/*.png
+turtles-data/
 
 # metadata.json ve README'ler repoda kalsın
 !data/database/**/metadata.json
