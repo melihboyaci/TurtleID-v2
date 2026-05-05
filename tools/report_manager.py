@@ -1,6 +1,6 @@
 """
-report_manager.py — Yapısal Misyon Raporu Yöneticisi
-=====================================================
+tools/report_manager.py — Yapısal Misyon Raporu Yöneticisi
+=========================================================
 
 Misyon sonucunu BlackBoard'dan okuyarak dosya tabanlı, yapısal
 (structured) markdown rapora dönüştürür. Her çalıştırmada
