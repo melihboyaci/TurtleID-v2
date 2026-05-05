@@ -1,0 +1,273 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TURTLE·ID — Post-ocular Scute Pattern Recognition</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <!-- ══════════════════════════════════════════════════
+     HEADER
+══════════════════════════════════════════════════ -->
+    <header>
+      <div>
+        <div class="logo">
+          <span class="logo-text">🐢 TURTLE·ID</span>
+        </div>
+        <div class="tagline">Post-ocular scute pattern recognition system</div>
+      </div>
+      <div class="db-badge">
+        <span class="count" id="db-count">—</span>
+        <span class="label">kayıtlı<br />birey</span>
+      </div>
+    </header>
+
+    <!-- ══════════════════════════════════════════════════
+     MAIN
+══════════════════════════════════════════════════ -->
+    <main>
+      <!-- Sekmeler -->
+      <div class="tabs">
+        <button class="tab-btn active" data-tab="tab-identify">TANI</button>
+        <button class="tab-btn" data-tab="tab-register">KAYIT</button>
+      </div>
+
+      <!-- ─────────────────────────────────────────────
+       TANI TABI
+  ───────────────────────────────────────────── -->
+      <div id="tab-identify" class="tab-panel active">
+        <!-- ZONE 1: Görsel yükleme -->
+        <p class="section-label">01 — Görsel Yükleme</p>
+        <div
+          class="drop-zone"
+          id="id-drop-zone"
+          role="button"
+          tabindex="0"
+          aria-label="Kaplumbağa kafa profili yükle"
+        >
+          <span class="drop-zone-icon">🐢</span>
+          <div class="drop-zone-text">
+            <strong>Kaplumbağa kafa profili görselini buraya bırak</strong>
+            veya tıklayarak dosya seç
+            <div class="drop-zone-hint">JPG, PNG — maks. 10 MB</div>
+          </div>
+        </div>
+        <input type="file" id="file-input" accept=".jpg,.jpeg,.png" />
+
+        <!-- ZONE 2: Kırpma -->
+        <div class="crop-zone" id="id-crop-zone">
+          <hr class="divider" />
+          <p class="section-label">02 — Kafa Bölgesini Seç</p>
+          <div class="crop-container">
+            <canvas id="crop-canvas"></canvas>
+          </div>
+          <div class="crop-actions">
+            <div class="zoom-controls">
+              <button
+                class="btn btn-outline zoom-btn"
+                id="id-zoom-out"
+                title="Uzaklaştır"
+              >
+                −
+              </button>
+              <span class="zoom-level" id="id-zoom-level">1.0×</span>
+              <button
+                class="btn btn-outline zoom-btn"
+                id="id-zoom-in"
+                title="Yakınlaştır"
+              >
+                +
+              </button>
+              <button
+                class="btn btn-outline zoom-btn"
+                id="id-zoom-reset"
+                title="Tam görünüm"
+              >
+                ↺
+              </button>
+            </div>
+            <span class="crop-hint"
+              >Sürükle: seç · <kbd>Shift</kbd>+sürükle: kaydır · Tekerlek:
+              zoom</span
+            >
+            <button class="btn btn-outline" id="id-reset-btn">SIFIRLA</button>
+            <button class="btn btn-primary" id="id-crop-btn">
+              KIRP VE TANI
+            </button>
+          </div>
+        </div>
+
+        <!-- Hata mesajı -->
+        <div class="alert alert-error" id="id-alert"></div>
+
+        <!-- ZONE 3: Pipeline ilerleme -->
+        <div class="pipeline" id="pipeline">
+          <hr class="divider" />
+          <p class="pipeline-title">03 — Pipeline İlerlemesi</p>
+          <div class="pipeline-steps">
+            <div class="step" id="step-audit">
+              <span class="step-icon">○</span>
+              <span class="step-name">AuditWorker</span>
+              <span class="step-msg">—</span>
+            </div>
+
+            <div class="step" id="step-head">
+              <span class="step-icon">○</span>
+              <span class="step-name">HeadDetectionWorker</span>
+              <span class="step-msg">—</span>
+            </div>
+
+            <div class="step" id="step-preprocess">
+              <span class="step-icon">○</span>
+              <span class="step-name">PreprocessingWorker</span>
+              <span class="step-msg">—</span>
+            </div>
+
+            <div class="step" id="step-recognition">
+              <span class="step-icon">○</span>
+              <span class="step-name">RecognitionWorker</span>
+              <span class="step-msg">—</span>
+            </div>
+
+            <div class="step" id="step-evaluation">
+              <span class="step-icon">○</span>
+              <span class="step-name">EvaluationWorker</span>
+              <span class="step-msg">—</span>
+            </div>
+
+            <div class="step" id="step-reporting">
+              <span class="step-icon">○</span>
+              <span class="step-name">ReportingWorker</span>
+              <span class="step-msg">—</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- ZONE 4: Sonuç -->
+        <div class="result-card" id="result-card">
+          <!-- JS tarafından doldurulur -->
+        </div>
+      </div>
+      <!-- /tab-identify -->
+
+      <!-- ─────────────────────────────────────────────
+       KAYIT TABI
+  ───────────────────────────────────────────── -->
+      <div id="tab-register" class="tab-panel">
+        <!-- Görsel yükleme -->
+        <p class="section-label">01 — Görsel Yükleme</p>
+        <div
+          class="drop-zone"
+          id="reg-drop-zone"
+          role="button"
+          tabindex="0"
+          aria-label="Kayıt için kaplumbağa görseli yükle"
+        >
+          <span class="drop-zone-icon">📷</span>
+          <div class="drop-zone-text">
+            <strong>Kaplumbağa kafa profilini buraya bırak</strong>
+            veya tıklayarak dosya seç
+            <div class="drop-zone-hint">JPG, PNG — maks. 10 MB</div>
+          </div>
+        </div>
+        <input type="file" id="reg-file-input" accept=".jpg,.jpeg,.png" />
+
+        <!-- Kırpma -->
+        <div class="crop-zone" id="reg-crop-zone">
+          <hr class="divider" />
+          <p class="section-label">02 — Kafa Bölgesini Kırp</p>
+          <div class="crop-container">
+            <canvas id="reg-crop-canvas"></canvas>
+          </div>
+          <div class="crop-actions">
+            <div class="zoom-controls">
+              <button
+                class="btn btn-outline zoom-btn"
+                id="reg-zoom-out"
+                title="Uzaklaştır"
+              >
+                −
+              </button>
+              <span class="zoom-level" id="reg-zoom-level">1.0×</span>
+              <button
+                class="btn btn-outline zoom-btn"
+                id="reg-zoom-in"
+                title="Yakınlaştır"
+              >
+                +
+              </button>
+              <button
+                class="btn btn-outline zoom-btn"
+                id="reg-zoom-reset"
+                title="Tam görünüm"
+              >
+                ↺
+              </button>
+            </div>
+            <span class="crop-hint"
+              >Kafa bölgesini seçin · <kbd>Shift</kbd>+sürükle: kaydır ·
+              Tekerlek: zoom</span
+            >
+            <button class="btn btn-outline" id="reg-reset-btn">SIFIRLA</button>
+            <button class="btn btn-outline" id="reg-crop-btn">KIRP</button>
+          </div>
+        </div>
+
+        <!-- Form -->
+        <hr class="divider" />
+        <p class="section-label">03 — Kayıt Bilgileri</p>
+
+        <div class="form-group">
+          <label class="form-label" for="reg-name"
+            >Kaplumbağa Adı / Etiketi *</label
+          >
+          <input
+            class="form-input"
+            type="text"
+            id="reg-name"
+            placeholder="örn. Barry, t007, Yeşil_003"
+          />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Profil Tarafı *</label>
+          <div class="radio-group">
+            <label class="radio-label">
+              <input type="radio" name="profile" value="sag" />
+              <span>Sağ Profil</span>
+            </label>
+            <label class="radio-label">
+              <input type="radio" name="profile" value="sol" />
+              <span>Sol Profil</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="reg-notes">Ek Not (opsiyonel)</label>
+          <textarea
+            class="form-textarea"
+            id="reg-notes"
+            placeholder="Örn: Datça kıyısında gözlemlendi, 2024-07..."
+          ></textarea>
+        </div>
+
+        <div class="alert" id="reg-alert"></div>
+
+        <button class="btn btn-primary" id="reg-submit-btn" disabled>
+          KAYDET
+        </button>
+      </div>
+      <!-- /tab-register -->
+    </main>
+
+    <script src="app.js"></script>
+  </body>
+</html>

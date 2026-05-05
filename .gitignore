@@ -57,3 +57,6 @@ data/database/embeddings_cache.json
 !data/database/**/metadata.json
 !data/database/README.md
 !data/query/.gitkeep
+
+PROJE_SAVUNMA_VE_MIMARI_REHBERI.md
+
