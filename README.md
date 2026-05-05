@@ -63,7 +63,7 @@ Sistemin artık modern bir web arayüzü (GUI) bulunmaktadır. İşlemlerinizi w
    ```text
    http://localhost:8000
    ```
-3. Web arayüzü üzerinden deniz kaplumbağası görsellerini yükleyip, sistemin sağladığı kırpma (crop) aracı ile kafa profilini seçerek **"Kimlik Tespiti"** veya **"Yeni Birey Kaydı"** yapabilirsiniz.
+3. Web arayüzü üzerinden deniz kaplumbağası görselini yükleyip, sistemin sağladığı kırpma (crop) aracı ile kafa profilini seçerek **"Kimlik Tespiti"** yapabilirsiniz.
 
 _(Not: Eski CLI yöntemi ile toplu test yapmak isterseniz `data/query/` klasörüne fotoğraf koyarak `python main.py` komutunu kullanmaya devam edebilirsiniz.)_
 

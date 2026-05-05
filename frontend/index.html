@@ -33,12 +33,6 @@
      MAIN
 ══════════════════════════════════════════════════ -->
     <main>
-      <!-- Sekmeler -->
-      <div class="tabs">
-        <button class="tab-btn active" data-tab="tab-identify">TANI</button>
-        <button class="tab-btn" data-tab="tab-register">KAYIT</button>
-      </div>
-
       <!-- ─────────────────────────────────────────────
        TANI TABI
   ───────────────────────────────────────────── -->
@@ -156,116 +150,6 @@
         </div>
       </div>
       <!-- /tab-identify -->
-
-      <!-- ─────────────────────────────────────────────
-       KAYIT TABI
-  ───────────────────────────────────────────── -->
-      <div id="tab-register" class="tab-panel">
-        <!-- Görsel yükleme -->
-        <p class="section-label">01 — Görsel Yükleme</p>
-        <div
-          class="drop-zone"
-          id="reg-drop-zone"
-          role="button"
-          tabindex="0"
-          aria-label="Kayıt için kaplumbağa görseli yükle"
-        >
-          <span class="drop-zone-icon">📷</span>
-          <div class="drop-zone-text">
-            <strong>Kaplumbağa kafa profilini buraya bırak</strong>
-            veya tıklayarak dosya seç
-            <div class="drop-zone-hint">JPG, PNG — maks. 10 MB</div>
-          </div>
-        </div>
-        <input type="file" id="reg-file-input" accept=".jpg,.jpeg,.png" />
-
-        <!-- Kırpma -->
-        <div class="crop-zone" id="reg-crop-zone">
-          <hr class="divider" />
-          <p class="section-label">02 — Kafa Bölgesini Kırp</p>
-          <div class="crop-container">
-            <canvas id="reg-crop-canvas"></canvas>
-          </div>
-          <div class="crop-actions">
-            <div class="zoom-controls">
-              <button
-                class="btn btn-outline zoom-btn"
-                id="reg-zoom-out"
-                title="Uzaklaştır"
-              >
-                −
-              </button>
-              <span class="zoom-level" id="reg-zoom-level">1.0×</span>
-              <button
-                class="btn btn-outline zoom-btn"
-                id="reg-zoom-in"
-                title="Yakınlaştır"
-              >
-                +
-              </button>
-              <button
-                class="btn btn-outline zoom-btn"
-                id="reg-zoom-reset"
-                title="Tam görünüm"
-              >
-                ↺
-              </button>
-            </div>
-            <span class="crop-hint"
-              >Kafa bölgesini seçin · <kbd>Shift</kbd>+sürükle: kaydır ·
-              Tekerlek: zoom</span
-            >
-            <button class="btn btn-outline" id="reg-reset-btn">SIFIRLA</button>
-            <button class="btn btn-outline" id="reg-crop-btn">KIRP</button>
-          </div>
-        </div>
-
-        <!-- Form -->
-        <hr class="divider" />
-        <p class="section-label">03 — Kayıt Bilgileri</p>
-
-        <div class="form-group">
-          <label class="form-label" for="reg-name"
-            >Kaplumbağa Adı / Etiketi *</label
-          >
-          <input
-            class="form-input"
-            type="text"
-            id="reg-name"
-            placeholder="örn. Barry, t007, Yeşil_003"
-          />
-        </div>
-
-        <div class="form-group">
-          <label class="form-label">Profil Tarafı *</label>
-          <div class="radio-group">
-            <label class="radio-label">
-              <input type="radio" name="profile" value="sag" />
-              <span>Sağ Profil</span>
-            </label>
-            <label class="radio-label">
-              <input type="radio" name="profile" value="sol" />
-              <span>Sol Profil</span>
-            </label>
-          </div>
-        </div>
-
-        <div class="form-group">
-          <label class="form-label" for="reg-notes">Ek Not (opsiyonel)</label>
-          <textarea
-            class="form-textarea"
-            id="reg-notes"
-            placeholder="Örn: Datça kıyısında gözlemlendi, 2024-07..."
-          ></textarea>
-        </div>
-
-        <div class="alert" id="reg-alert"></div>
-
-        <button class="btn btn-primary" id="reg-submit-btn" disabled>
-          KAYDET
-        </button>
-      </div>
-      <!-- /tab-register -->
     </main>
 
     <script src="app.js"></script>
