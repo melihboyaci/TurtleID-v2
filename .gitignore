@@ -34,13 +34,15 @@ Desktop.ini
 *.tflite
 *.pb
 
-# Logs (otomatik oluşur)
+# Logs & Raporlar (otomatik veya manuel oluşan)
 logs/*.md
 logs/*.jpg
 logs/*.jpeg
 logs/*.png
 gelisim_raporu.md
 SON_GELISTIRMELER_RAPORU.md
+PROJE_SAVUNMA_VE_MIMARI_REHBERI.md
+RAPOR.md
 !logs/.gitkeep
 
 # Data - görseller (büyük dosyalar)
@@ -57,6 +59,4 @@ data/database/embeddings_cache.json
 !data/database/**/metadata.json
 !data/database/README.md
 !data/query/.gitkeep
-
-PROJE_SAVUNMA_VE_MIMARI_REHBERI.md
 

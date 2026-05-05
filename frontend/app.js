@@ -53,7 +53,7 @@ loadDbCount();
  */
 function createCropComponent(canvas) {
   const ctx = canvas.getContext("2d");
-  const MIN_SIZE = 50; // görsel pikseli
+  const MIN_SIZE = 100; // görsel pikseli
   const HANDLE_SIZE = 10; // canvas display pikseli
   const MAX_ZOOM = 8; // 8× yakınlaştırma limiti
 
@@ -744,7 +744,7 @@ async function runIdentifyFlow() {
     renderResult(data);
   } catch (err) {
     const msg = /seçilmedi|küçük/.test(err.message || "")
-      ? "Lütfen kafa bölgesini seçin (min 50×50 px)."
+      ? "Lütfen kafa bölgesini seçin (min 100×100 px)."
       : "Sunucuya bağlanılamadı. Lütfen sunucunun çalıştığından emin olun.";
     showAlert(idAlert, msg);
   } finally {
@@ -884,7 +884,7 @@ regCropBtn.addEventListener("click", async () => {
     );
     regAlert.className = "alert alert-success visible";
   } catch (_) {
-    showAlert(regAlert, "Lütfen kafa bölgesini seçin (min 50×50 px).");
+    showAlert(regAlert, "Lütfen kafa bölgesini seçin (min 100×100 px).");
     regAlert.className = "alert alert-error visible";
   }
 });

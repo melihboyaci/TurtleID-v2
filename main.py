@@ -29,7 +29,7 @@ import os
 import sys
 
 from agents.supervisor import SupervisorAgent
-from report_manager import ReportManager
+from tools.report_manager import ReportManager
 from config import QUERY_DIR
 
 

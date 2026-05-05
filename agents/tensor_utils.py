@@ -36,9 +36,10 @@ def to_tensor(img_rgb: np.ndarray) -> np.ndarray:
 
     Dönüşüm Adımları:
         1. Görsel boyutunu TARGET_SIZE'a (varsayılan 224×224) ölçekler.
-        2. (H, W, 3) → (1, H, W, 3) şekline batch boyutu ekler.
-        3. float32'ye çevirir.
-        4. ResNet50'ye özgü preprocess_input (kanal bazlı ortalama çıkarma)
+        2. LAB renk uzayında L kanalına CLAHE uygular (Doku ve detayı vurgular).
+        3. (H, W, 3) → (1, H, W, 3) şekline batch boyutu ekler.
+        4. float32'ye çevirir.
+        5. ResNet50'ye özgü preprocess_input (kanal bazlı ortalama çıkarma)
            uygular.
 
     Args:
@@ -50,5 +51,13 @@ def to_tensor(img_rgb: np.ndarray) -> np.ndarray:
     """
     if img_rgb.shape[:2] != TARGET_SIZE:
         img_rgb = cv2.resize(img_rgb, TARGET_SIZE)
+
+    # --- CLAHE EKLENTİSİ ---
+    lab = cv2.cvtColor(img_rgb, cv2.COLOR_RGB2LAB)
+    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+    lab[:, :, 0] = clahe.apply(lab[:, :, 0])
+    img_rgb = cv2.cvtColor(lab, cv2.COLOR_LAB2RGB)
+    # -----------------------
+
     tensor = np.expand_dims(img_rgb, axis=0).astype(np.float32)
     return preprocess_input(tensor)

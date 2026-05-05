@@ -31,6 +31,13 @@ class TripletDataGenerator(tf.keras.utils.Sequence):
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         img = cv2.resize(img, self.target_size)
 
+        # --- CLAHE EKLENTİSİ ---
+        lab = cv2.cvtColor(img, cv2.COLOR_RGB2LAB)
+        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+        lab[:, :, 0] = clahe.apply(lab[:, :, 0])
+        img = cv2.cvtColor(lab, cv2.COLOR_LAB2RGB)
+        # -----------------------
+
         # Hafif augmentation: %50 olasılıkla horizontal flip
         # (sağ profil <-> sol profil birbirine dönüşür, model invariance öğrensin)
         if augment and random.random() < 0.5:
