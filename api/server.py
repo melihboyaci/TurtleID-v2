@@ -33,7 +33,7 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from agents.supervisor import SupervisorAgent
-from config import DATABASE_DIR, EMBEDDING_MODEL_PATH
+from config import CACHE_FILE, DATABASE_DIR, EMBEDDING_MODEL_PATH
 import kayit_yardimcisi
 
 # ── Sabitler ────────────────────────────────────────────────────────────────────────────
@@ -127,34 +127,43 @@ async def list_turtles() -> dict:
         turtles: Birey bilgilerinin listesi.
     """
     db_path = _PROJECT_ROOT / DATABASE_DIR
+    cache_path = _PROJECT_ROOT / CACHE_FILE
 
     if not db_path.exists():
         return {"count": 0, "turtles": []}
 
     turtles: list[dict] = []
     try:
+        cached_turtles: dict = {}
+        if cache_path.exists():
+            with cache_path.open("r", encoding="utf-8") as f:
+                cached_turtles = json.load(f)
+
         for folder in sorted(db_path.iterdir()):
             if not folder.is_dir():
                 continue
 
             meta_file = folder / "metadata.json"
-            if not meta_file.exists():
-                continue
-
-            with meta_file.open("r", encoding="utf-8") as f:
-                meta: dict = json.load(f)
+            meta: dict = {}
+            if meta_file.exists():
+                with meta_file.open("r", encoding="utf-8") as f:
+                    meta = json.load(f)
 
             image_count = sum(
                 1 for p in folder.iterdir()
                 if p.suffix.lower() in IMAGE_EXTS
             )
 
+            cached_info = cached_turtles.get(folder.name, {})
+            if not meta and not cached_info:
+                continue
+
             turtles.append(
                 {
                     "id": meta.get("id", folder.name),
                     "name": meta.get("name", folder.name),
                     "species": meta.get("species", "Bilinmiyor"),
-                    "image_count": image_count,
+                    "image_count": image_count or cached_info.get("image_count", 0),
                 }
             )
 
